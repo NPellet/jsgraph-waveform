@@ -437,4 +437,4 @@ class LM {
   }
 }
 
-export default FitHost
+module.export = FitHost

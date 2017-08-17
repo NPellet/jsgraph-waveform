@@ -1,4 +1,3 @@
-import * as util from '../graph.util'
 
 var aggregatorWorker;
 var queue = {};
@@ -191,30 +190,39 @@ string = string.split( "\n" );
 string.pop();
 string.shift();
 
-var workerUrl = URL.createObjectURL( new Blob(
-  [ string.join( "\n" ) ], {
-    type: 'application/javascript'
-  } ) );
 
-aggregatorWorker = new Worker( workerUrl );
 
-aggregatorWorker.onmessage = function( e ) {
 
-  var id = e.data._queueId;
-  delete e.data._queueId;
-  queue[ id ]( e.data );
-  delete queue[ id ];
-}
+if( typeof URL == "undefined" ) {
+  module.exports = function() {};
+  return;
+} else {
 
-export default function( toOptimize ) {
+  var workerUrl = URL.createObjectURL( new Blob(
+    [ string.join( "\n" ) ], {
+      type: 'application/javascript'
+    } ) );
 
-  var requestId = util.guid();
-  toOptimize._queueId = requestId;
+  aggregatorWorker = new Worker( workerUrl );
 
-  var prom = new Promise( ( resolver ) => {
-    queue[ requestId ] = resolver;
-  } );
+  aggregatorWorker.onmessage = function( e ) {
 
-  aggregatorWorker.postMessage( toOptimize );
-  return prom;
+    var id = e.data._queueId;
+    delete e.data._queueId;
+    queue[ id ]( e.data );
+    delete queue[ id ];
+  }
+
+  module.export = function( toOptimize ) {
+
+    var requestId = Date.now();
+    toOptimize._queueId = requestId;
+
+    var prom = new Promise( ( resolver ) => {
+      queue[ requestId ] = resolver;
+    } );
+
+    aggregatorWorker.postMessage( toOptimize );
+    return prom;
+  }
 }

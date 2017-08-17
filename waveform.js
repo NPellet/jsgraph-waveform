@@ -1,5 +1,6 @@
-import FitLM from './fit_lm'
-import aggregator from './data_aggregator'
+
+var FitLM = require('./fit_lm');
+var aggregator = require('./data_aggregator');
 
 class Waveform {
 
@@ -1321,7 +1322,7 @@ class Waveform {
         continue;
       }
       // Crossing up
-      if ( value > level && below ) {
+      if ( value >= level && below ) {
 
         below = false;
 
@@ -1330,7 +1331,7 @@ class Waveform {
 
           for ( j = i + ( box - 1 ) / 2; j >= i - ( box - 1 ) / 2; j-- ) {
 
-            if ( this.data[ j ] > level && this.data[ j - 1 ] <= level ) { // Find a crossing
+            if ( this.data[ j ] >= level && this.data[ j - 1 ] < level ) { // Find a crossing
 
               switch ( options.rounding ) {
                 case 'before':
@@ -1349,7 +1350,7 @@ class Waveform {
           }
         }
 
-      } else if ( value < level && !below ) {
+      } else if ( value <= level && !below ) {
 
         below = true;
 
@@ -1357,7 +1358,7 @@ class Waveform {
 
           for ( j = i + ( box - 1 ) / 2; j >= i - ( box - 1 ) / 2; j-- ) {
 
-            if ( this.data[ j ] < level && this.data[ j - 1 ] >= level ) { // Find a crossing
+            if ( this.data[ j ] <= level && this.data[ j - 1 ] > level ) { // Find a crossing
 
               switch ( options.rounding ) {
                 case 'before':
@@ -1552,4 +1553,5 @@ function binarySearch( target, haystack, reverse ) {
   }
 }
 
-export default Waveform
+module.exports = Waveform;
+//export default Waveform
