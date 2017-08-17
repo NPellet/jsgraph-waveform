@@ -1,8 +1,4 @@
 import FitLM from './fit_lm'
-import {
-  extend
-} from '../graph.util'
-
 import aggregator from './data_aggregator'
 
 class Waveform {
@@ -561,7 +557,7 @@ class Waveform {
 
     return new Promise( function( resolver, rejector ) {
 
-      var fit = new FitLM( extend( {}, {
+      var fit = new FitLM( Object.assign( {}, {
 
         dataY: self,
         dataX: self.getXWaveform(),
@@ -1229,7 +1225,7 @@ class Waveform {
 
   findLevels( level, options ) {
 
-    options = extend( {
+    options = Object.assign( {
 
       box: 1,
       edge: 'both',
@@ -1243,7 +1239,7 @@ class Waveform {
     var indices = [];
     var i = 0;
 
-    while ( lvlIndex = this.findLevel( level, extend( true, {}, options, {
+    while ( lvlIndex = this.findLevel( level, Object.assign( {}, options, {
         rangeP: [ lastLvlIndex, options.rangeP[ 1 ] ]
       } ) ) ) {
       indices.push( lvlIndex );
@@ -1261,7 +1257,7 @@ class Waveform {
   // Find the first level in the specified range
   findLevel( level, options ) {
 
-    options = extend( {
+    options = Object.assign( {
 
       box: 1,
       edge: 'both',
