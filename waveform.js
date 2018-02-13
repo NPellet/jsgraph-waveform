@@ -1,6 +1,5 @@
-
-var FitLM = require('./fit_lm');
-var aggregator = require('./data_aggregator');
+import FitLM from './fit_lm';
+import extend from 'extend';
 
 class Waveform {
 
@@ -473,6 +472,7 @@ class Waveform {
     // this.minY = ( this.minY - this.getShift() ) * scale;
     // this.maxY = ( this.maxY - this.getShift() ) * scale;
     this.scale = scale;
+    return this;
   }
 
   setXShift( shift = 0 ) {
@@ -558,7 +558,7 @@ class Waveform {
 
     return new Promise( function( resolver, rejector ) {
 
-      var fit = new FitLM( Object.assign( {}, {
+      var fit = new FitLM( extend( {}, {
 
         dataY: self,
         dataX: self.getXWaveform(),
@@ -828,13 +828,12 @@ class Waveform {
 
   interpolate( x ) {
 
-    let xIndex;
     let yData = this.getDataY();
+    let xIndex;
 
     if ( this.xdata ) {
-      let xData = this.xdata.getData(),
-        xIndex = binarySearch( x, xData, !this.xdata.getMonotoneousAscending() );
-
+      let xData = this.xdata.getData();
+      xIndex = binarySearch( x, xData, !this.xdata.getMonotoneousAscending() );
       if ( xData[ xIndex ] == x ) {
         return yData[ xIndex ];
       }
@@ -846,6 +845,17 @@ class Waveform {
       return ( xIndex - xIndexF ) * ( yData[ xIndexF + 1 ] - yData[ xIndexF ] ) + yData[ xIndexF ];
     }
 
+  }
+  
+  interpolateIndex_X( index ) {
+
+    let yData = this.getDataY();
+    if ( this.xdata ) {
+      let xData = this.xdata.getData();
+      let indexStart = Math.floor( index );
+
+      return ( index - indexStart ) * ( xData[ indexStart + 1 ] - xData[ indexStart ] ) + xData[ indexStart ];
+    }
   }
 
   getMonotoneousAscending() {
@@ -1226,7 +1236,7 @@ class Waveform {
 
   findLevels( level, options ) {
 
-    options = Object.assign( {
+    options = extend( {
 
       box: 1,
       edge: 'both',
@@ -1240,7 +1250,7 @@ class Waveform {
     var indices = [];
     var i = 0;
 
-    while ( lvlIndex = this.findLevel( level, Object.assign( {}, options, {
+    while ( lvlIndex = this.findLevel( level, extend( true, {}, options, {
         rangeP: [ lastLvlIndex, options.rangeP[ 1 ] ]
       } ) ) ) {
       indices.push( lvlIndex );
@@ -1258,7 +1268,7 @@ class Waveform {
   // Find the first level in the specified range
   findLevel( level, options ) {
 
-    options = Object.assign( {
+    options = extend( {
 
       box: 1,
       edge: 'both',
@@ -1322,7 +1332,7 @@ class Waveform {
         continue;
       }
       // Crossing up
-      if ( value >= level && below ) {
+      if ( value > level && below ) {
 
         below = false;
 
@@ -1331,7 +1341,7 @@ class Waveform {
 
           for ( j = i + ( box - 1 ) / 2; j >= i - ( box - 1 ) / 2; j-- ) {
 
-            if ( this.data[ j ] >= level && this.data[ j - 1 ] < level ) { // Find a crossing
+            if ( this.data[ j ] > level && this.data[ j - 1 ] <= level ) { // Find a crossing
 
               switch ( options.rounding ) {
                 case 'before':
@@ -1350,7 +1360,7 @@ class Waveform {
           }
         }
 
-      } else if ( value <= level && !below ) {
+      } else if ( value < level && !below ) {
 
         below = true;
 
@@ -1358,7 +1368,7 @@ class Waveform {
 
           for ( j = i + ( box - 1 ) / 2; j >= i - ( box - 1 ) / 2; j-- ) {
 
-            if ( this.data[ j ] <= level && this.data[ j - 1 ] > level ) { // Find a crossing
+            if ( this.data[ j ] < level && this.data[ j - 1 ] >= level ) { // Find a crossing
 
               switch ( options.rounding ) {
                 case 'before':
@@ -1553,5 +1563,4 @@ function binarySearch( target, haystack, reverse ) {
   }
 }
 
-module.exports = Waveform;
-//export default Waveform
+export default Waveform
