@@ -5,18 +5,17 @@
   "scripts": {},
   "main": "dist/waveform.js",
   "files": [
-    "waveform.js",
-    "fit_lm.js",
-    "data_aggregator.js"
+    "dist/waveform.js"
   ],
-  "devDependencies": {},
-  "dependencies": {
+  "devDependencies": {
     "grunt-bump": "^0.8.0",
     "grunt-exec": "^3.0.0",
     "grunt-rollup": "^9.0.0",
     "rollup-plugin-commonjs": "^8.3.0",
     "rollup-plugin-node-resolve": "^3.0.2"
   },
-  "repository": "NPellet/jsGraph",
+  "dependencies": {  
+  },
+  "repository": "NPellet/jsgraph-waveform",
   "license": "MIT"
 }
