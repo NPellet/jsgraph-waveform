@@ -1735,7 +1735,7 @@ class Waveform {
         continue;
       }
       // Crossing up
-      if (value > level && below) {
+      if (value >= level && below) {
 
         below = false;
 
@@ -1744,7 +1744,7 @@ class Waveform {
 
           for (j = i + (box - 1) / 2; j >= i - (box - 1) / 2; j--) {
 
-            if (this.data[j] > level && this.data[j - 1] <= level) {
+            if (this.data[j] >= level && this.data[j - 1] <= level) {
               // Find a crossing
 
               switch (options.rounding) {
@@ -1763,7 +1763,7 @@ class Waveform {
             }
           }
         }
-      } else if (value < level && !below) {
+      } else if (value <= level && !below) {
 
         below = true;
 
@@ -1771,7 +1771,7 @@ class Waveform {
 
           for (j = i + (box - 1) / 2; j >= i - (box - 1) / 2; j--) {
 
-            if (this.data[j] < level && this.data[j - 1] >= level) {
+            if (this.data[j] <= level && this.data[j - 1] >= level) {
               // Find a crossing
 
               switch (options.rounding) {
