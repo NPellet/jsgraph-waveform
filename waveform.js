@@ -7,7 +7,30 @@ class Waveform {
 
     this.xOffset = xOffset;
     this.xScale = xScale;
+
+    // Error bar handling
+    this.errors = {
+
+      nb: 0,
+
+      bars: {
+        above: null,
+        below: null
+      },
+
+      boxes: {
+        above: null,
+        below: null
+      }
+    };
+
+    this.BELOW = Waveform.BELOW;
+    this.ABOVE = Waveform.ABOVE;
+    this.BOX = Waveform.BOX;
+    this.BAR = Waveform.BAR;
+
     this.setData( data );
+
   }
 
   /** [ [ x1, y1 ], [ x2, y2 ] ] */
@@ -297,8 +320,24 @@ class Waveform {
       this._monotoneousAscending = dataY[ 1 ] > dataY[ 0 ];
     }
 
-    this.minY = minY;
-    this.maxY = maxY;
+    if ( this.hasErrorBars() ) { // If prefer to loop again here
+
+      for ( i = 0; i < l; i++ ) {
+
+        if ( dataY[ i ] === dataY[ i ] ) { // NaN support
+
+          minY = Math.min( minY, dataY[ i ] - this.getMaxError( i, 'below' ) );
+          maxY = Math.max( maxY, dataY[ i ] + this.getMaxError( i, 'above' ) );
+        }
+      }
+
+      this.minY = minY;
+      this.maxY = maxY;
+
+    } else {
+      this.minY = minY;
+      this.maxY = maxY;
+    }
 
     this.data = dataY;
 
@@ -376,6 +415,59 @@ class Waveform {
     }
 
     return position;
+  }
+
+  getIndexFromXY( xval, yval, useDataToUse = false, roundingMethod = Math.round, scaleX, scaleY ) {
+
+    let xdata, ydata;
+
+    if ( useDataToUse && this.dataInUse ) {
+
+      xdata = this.dataInUse.x;
+      ydata = this.dataInUse.y;
+
+    } else if ( this.xdata ) {
+
+      xdata = this.xdata.data;
+      ydata = this.data;
+    }
+
+    let position;
+
+    if ( this.isXMonotoneous() ) { // X lookup only
+
+      if ( this.hasXWaveform() ) { // The x value HAS to be rescaled
+        position = this.xdata.getIndexFromData( xval, xdata, this.xdata.getMonotoneousAscending(), roundingMethod );
+
+      } else {
+        position = Math.max( 0, Math.min( this.getLength() - 1, roundingMethod( ( xval - this.xOffset ) / ( this.xScale ) ) ) );
+      }
+    } else if ( !isNaN( yval ) ) {
+
+      position = this.getIndexFromDataXY( xval, xdata, yval, ydata, scaleX, scaleY );
+
+    } else {
+      return;
+    }
+
+    if ( useDataToUse && this.dataInUse && this.dataInUseType == 'aggregateX' ) { // In case of aggregation, round to the closest element of 4.
+      return position - ( position % 4 );
+    }
+
+    return position;
+  }
+
+  getIndexFromDataXY( valX, dataX, valY, dataY, scaleX = 1, scaleY = 1 ) {
+
+    let data, position;
+
+    valX -= this.getXShift();
+    valX /= this.getXScale();
+
+    valY -= this.getShift();
+    valY /= this.getScale();
+
+    return euclidianSearch( valX, valY, dataX, dataY, scaleX, scaleY );
   }
 
   getIndexFromData( val, valCollection, isAscending, roundingMethod ) {
@@ -846,7 +938,7 @@ class Waveform {
     }
 
   }
-  
+
   interpolateIndex_X( index ) {
 
     let yData = this.getDataY();
@@ -1465,7 +1557,268 @@ class Waveform {
     this.setData( this.data );
   }
 
-};
+  ////////////////////////////////////////////////////////////
+  ///// HANDLING ERRORS   ////////////////////////////////////
+  ////////////////////////////////////////////////////////////
+
+  setErrorBarX( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+    xWave.setErrorBar( waveform );
+    return this;
+  }
+
+  setErrorBarXBelow( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+    xWave.setErrorBarBelow( waveform );
+    return this;
+  }
+
+  setErrorBarXAbove( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+    xWave.setErrorBarAbove( waveform );
+    return this;
+  }
+
+  setErrorBoxX( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+    xWave.setErrorBoxAbove( waveform );
+    xWave.setErrorBoxBelow( waveform );
+    return this;
+  }
+
+  setErrorBoxXBelow( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+
+    xWave.setErrorBoxBelow( waveform );
+    return this;
+  }
+
+  setErrorBoxXAbove( waveform ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    var xWave = this.getXWaveform();
+    xWave.setErrorBoxAbove( waveform );
+    return this;
+  }
+
+  setErrorBar( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+    this.errors.nb++;
+    this.errors.nb++;
+    this.errors.bars.bottom = waveform;
+    this.errors.bars.top = waveform;
+
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  setErrorBarBelow( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+    this.errors.nb++;
+    this.errors.bars.below = waveform;
+
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  setErrorBarAbove( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    this.errors.nb++;
+    this.errors.bars.above = waveform;
+
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  setErrorBox( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+    this.errors.nb++;
+    this.errors.nb++;
+    this.errors.boxes.above = waveform;
+    this.errors.boxes.below = waveform;
+
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  setErrorBoxBelow( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+    this.errors.nb++;
+    this.errors.boxes.below = waveform;
+
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  setErrorBoxAbove( waveform, checkMinMax = true ) {
+
+    if ( Array.isArray( waveform ) ) {
+      waveform = new Waveform( waveform );
+    }
+
+    this.errors.boxes.above = waveform;
+    if ( checkMinMax ) {
+      this._setData();
+    }
+  }
+
+  getMaxError( i, side = Waveform.ABOVE ) {
+
+    return Math.max( this.getMaxErrorType( i, side, Waveform.BOX ), this.getMaxErrorType( i, side, Waveform.BAR ) );
+  }
+
+  getMaxErrorType( i, side = Waveform.ABOVE, type = Waveform.BOX ) {
+
+    let stack;
+    if ( type == Waveform.BOX ) {
+      stack = this.errors.boxes;
+    } else if ( type == Waveform.BAR ) {
+      stack = this.errors.bars;
+    } else {
+      throw 'Unknown type of error';
+    }
+
+    let waveform;
+    if ( !( waveform = stack[ side ] ) ) {
+      if ( side == Waveform.ABOVE ) {
+        if ( stack[ side ] == Waveform.BELOW ) {
+          waveform = stack.below;
+        }
+      } else {
+        if ( stack[ side ] == Waveform.ABOVE ) {
+          waveform = stack.above;
+        }
+      }
+    }
+
+    if ( !waveform ) {
+      return 0;
+    }
+
+    return waveform.getY( i );
+  }
+
+  getErrorBarXBelow( index ) {
+    return this.getErrorX( index, Waveform.BELOW, Waveform.BAR );
+  }
+  getErrorBarXAbove( index ) {
+    return this.getErrorX( index, Waveform.ABOVE, Waveform.BAR );
+  }
+  getErrorBoxXBelow( index ) {
+    return this.getErrorX( index, Waveform.BELOW, Waveform.BOX );
+  }
+  getErrorBoxXAbove( index ) {
+    return this.getErrorX( index, Waveform.ABOVE, Waveform.BOX );
+  }
+
+  getErrorBarYBelow( index ) {
+    return this.getError( index, Waveform.BELOW, Waveform.BAR );
+  }
+  getErrorBarYAbove( index ) {
+    return this.getError( index, Waveform.ABOVE, Waveform.BAR );
+  }
+  getErrorBoxYBelow( index ) {
+    return this.getError( index, Waveform.BELOW, Waveform.BOX );
+  }
+  getErrorBoxYAbove( index ) {
+    return this.getError( index, Waveform.ABOVE, Waveform.BOX );
+  }
+
+  getErrorX( index, side = Waveform.ABOVE, type = Waveform.BAR ) {
+
+    if ( !this.hasXWaveform() ) {
+      return false;
+    }
+
+    return this.xdata.getError( index, side, type );
+  }
+
+  getError( index, side = Waveform.ABOVE, type = Waveform.BAR ) {
+
+    let errors = type == Waveform.BAR ? this.errors.bars : this.errors.boxes;
+
+    if ( !errors ) {
+      return false;
+    }
+
+    let wave;
+    if ( ( wave = ( side == Waveform.ABOVE ? errors.above : errors.below ) ) ) {
+
+      if ( wave == Waveform.ABOVE && side == Waveform.BELOW ) {
+        wave = errors.above;
+      } else if ( wave == Waveform.BELOW && side == Waveform.ABOVE ) {
+        wave = errors.below;
+      }
+
+      if ( !wave ) {
+        return false;
+      }
+
+      return wave.getY( index );
+    }
+  }
+
+  hasErrorBars() {
+
+    return this.errors.nb > 0 || ( this.hasXWaveform() && this.xdata.errors.nb > 0 );
+  }
+
+}
+
+Waveform.BELOW = Symbol();
+Waveform.ABOVE = Symbol();
+
+Waveform.BOX = Symbol();
+Waveform.BAR = Symbol();
 
 const MULTIPLY = Symbol();
 const ADD = Symbol();
@@ -1497,7 +1850,28 @@ function getIndexInterpolate( value, valueBefore, valueAfter, indexBefore, index
   return ( value - valueBefore ) / ( valueAfter - valueBefore ) * ( indexAfter - indexBefore ) + indexBefore;
 }
 
-function binarySearch( target, haystack, reverse ) {
+function euclidianSearch( targetX, targetY, haystackX, haystackY, scaleX = 1, scaleY = 1 ) {
+
+  let distance = Number.MAX_VALUE,
+    distance_i;
+
+  let index = -1;
+
+  for ( var i = 0, l = haystackX.length; i < l; i++ ) {
+
+    distance_i = ( ( ( ( targetX - haystackX[ i ] ) * scaleX ) ** 2 + ( ( targetY - haystackY[ i ] ) * scaleY ) ** 2 ) );
+
+    if ( distance_i < distance ) {
+
+      index = i;
+      distance = distance_i;
+    }
+  }
+
+  return index;
+}
+
+function binarySearch( target, haystack, reverse = haystack[ haystack.length - 1 ] < haystack[ 0 ] ) {
 
   let seedA = 0,
     length = haystack.length,
@@ -1505,6 +1879,10 @@ function binarySearch( target, haystack, reverse ) {
     seedInt,
     i = 0,
     nanDirection = 1;
+
+  if ( ( !reverse && ( haystack[ 0 ] > target || haystack[ seedB ] < target ) ) || ( reverse && ( haystack[ 0 ] < target || haystack[ seedB ] > target ) ) ) {
+    throw new Error( `Target ${target} is not in the stack` );
+  }
 
   if ( haystack[ seedA ] == target ) {
     return seedA;
@@ -1517,7 +1895,7 @@ function binarySearch( target, haystack, reverse ) {
   while ( true ) {
     i++;
     if ( i > 100 ) {
-      throw "Error loop";
+      throw new Error( "Error loop" );
     }
 
     seedInt = Math.floor( ( seedA + seedB ) / 2 );
@@ -1543,7 +1921,7 @@ function binarySearch( target, haystack, reverse ) {
     }
 
     //    console.log(seedA, seedB, seedInt, haystack[seedInt]);
-    if ( haystack[ seedInt ] <= target ) {
+    if ( haystack[ seedInt ] < target ) {
       if ( reverse ) {
         seedB = seedInt;
       } else {
